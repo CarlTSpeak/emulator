@@ -41,27 +41,26 @@ inline std::unordered_map<std::string_view, size_t> function_argument_count = []
 
         add_functions_with_arity(map, 1,
                                  {
-                                     "LoadLibraryA", "LoadLibraryW", "GetCommandLineA", "GetCommandLineW",
-                                     "GetModuleHandleA", "GetModuleHandleW",
-                                     "FreeLibrary"
-                                 });
+                                     "LoadLibraryA", "LoadLibraryW", "LoadLibrary", "GetCommandLineA", "GetCommandLineW",
+                                     "GetModuleHandleA", "GetModuleHandleW", "GetModuleHandle","FreeLibrary"});
 
         add_functions_with_arity(map, 2,
-                                 {"lstrcmpA", "lstrcmpW", "lstrcmpiA", "lstrcmpiW", "SetWindowTextA", "SetWindowTextW",
-                                  "GetWindowTextA", "GetWindowTextW", "FindNextFileA", "FindNextFileW"});
+                                 {"lstrcmpA", "lstrcmpW", "lstrcmpiA", "lstrcmpiW", "lstrcmp", "lstrcmpi", "SetWindowTextA", "SetWindowTextW", "GetWindowTextA", "GetWindowTextW",
+                                  "FindNextFileA", "FindNextFileW", "SetWindowText", "GetWindowText", "FindNextFile"});
 
         add_functions_with_arity(map, 3,
                                  {"GetEnvironmentVariableA", "GetEnvironmentVariableW", "ExpandEnvironmentStringsA",
                                   "ExpandEnvironmentStringsW", "GetPrivateProfileStringA", "GetPrivateProfileStringW",
-                                  "WritePrivateProfileStringA", "WritePrivateProfileStringW"});
+                                  "WritePrivateProfileStringA", "WritePrivateProfileStringW","ExpandEnvironmentStrings", "GetEnvironmentVariable"});
 
         add_functions_with_arity(map, 4,
                                  {"MessageBoxA", "MessageBoxW", "CreateProcessA", "CreateProcessW", "ShellExecuteA",
-                                  "ShellExecuteW", "SendMessageA", "SendMessageW", "PostMessageA", "PostMessageW"});
+                                  "ShellExecuteW", "SendMessageA", "SendMessageW", "PostMessageA", "PostMessageW",
+                                  "MessageBox", "CreateProcess", "ShellExecute", "SendMessage", "PostMessage"});
 
-        add_functions_with_arity(map, 5, {"CreateDirectoryExA", "CreateDirectoryExW"});
+        add_functions_with_arity(map, 5, {"CreateDirectoryExA", "CreateDirectoryExW", "CreateDirectoryEx"});
 
-        add_functions_with_arity(map, 6, {"CreateProcessAsUserA", "CreateProcessAsUserW"});
+        add_functions_with_arity(map, 6, {"CreateProcessAsUserA", "CreateProcessAsUserW", "CreateProcessAsUser"});
 
     return map;
 }();
