@@ -134,21 +134,39 @@ namespace
         }
     }
 
+    template <typename CharType = char>
+    void print_arg_labelled(windows_emulator& win_emu, size_t index)
+    {
+        const auto var_ptr = get_function_argument(win_emu.emu(), index);
+        if (!var_ptr)
+        {
+            win_emu.log.print(color::gray, "arg%zu: <null>  ", index);
+            return;
+        }
+
+        std::string str;
+
+        if constexpr (std::is_same_v<CharType, char16_t>)
+            str = u16_to_u8(read_string<char16_t>(win_emu.memory, var_ptr));
+        else
+            str = read_string<char>(win_emu.memory, var_ptr);
+
+        win_emu.log.print(color::gray, "arg%zu: \"%s\"  ", index, str.c_str());
+    }
+
     void handle_function_details(analysis_context& c, const std::string_view function)
     {
-        if (function == "GetEnvironmentVariableA" || function == "ExpandEnvironmentStringsA")
+        if (const auto it = function_argument_count.find(function); it != function_argument_count.end())
         {
-            print_arg_as_string(*c.win_emu, 0);
-        }
-        else if (function == "MessageBoxA")
-        {
-            print_arg_as_string(*c.win_emu, 2);
-            print_arg_as_string(*c.win_emu, 1);
-        }
-        else if (function == "MessageBoxW")
-        {
-            print_arg_as_string<char16_t>(*c.win_emu, 2);
-            print_arg_as_string<char16_t>(*c.win_emu, 1);
+            const bool is_unicode = is_unicode_function(function);
+            for (size_t i = 0; i < it->second; ++i)
+            {
+                if (is_unicode)
+                    print_arg_labelled<char16_t>(*c.win_emu, i);
+                else
+                    print_arg_labelled<char>(*c.win_emu, i);
+            }
+            c.win_emu->log.newline();
         }
     }
 

@@ -5,7 +5,6 @@
 #include "devices/mount_point_manager.hpp"
 #include "devices/security_support_provider.hpp"
 #include "devices/named_pipe.hpp"
-#include <iostream>
 
 namespace
 {
