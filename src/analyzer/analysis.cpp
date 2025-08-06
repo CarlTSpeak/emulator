@@ -137,8 +137,10 @@ namespace
     template <typename CharType = char>
     void print_arg_labelled(windows_emulator& win_emu, size_t index)
     {
-        const auto var_ptr = get_function_argument(win_emu.emu(), index);
-        if (!var_ptr)
+        constexpr size_t max_display_length = 128;
+        const uint64_t var_ptr = get_function_argument(win_emu.emu(), index);
+
+        if (var_ptr == 0)
         {
             win_emu.log.print(color::gray, "arg%zu: <null>  ", index);
             return;
@@ -147,11 +149,49 @@ namespace
         std::string str;
 
         if constexpr (std::is_same_v<CharType, char16_t>)
+        {
             str = u16_to_u8(read_string<char16_t>(win_emu.memory, var_ptr));
+        }
         else
+        {
             str = read_string<char>(win_emu.memory, var_ptr);
+        }
 
-        win_emu.log.print(color::gray, "arg%zu: \"%s\"  ", index, str.c_str());
+        const auto is_printable = [](const std::string& s) -> bool {
+            size_t count = 0;
+            for (unsigned char ch : s)
+            {
+                if (std::isprint(ch))
+                    ++count;
+            }
+            return !s.empty() && (count * 1.0 / s.size()) > 0.85;
+        };
+
+        if (str.length() > max_display_length)
+        {
+            str = str.substr(0, max_display_length) + "...";
+        }
+
+        if (is_printable(str))
+        {
+            win_emu.log.print(color::gray, "arg%zu: (0x%016llX) \"%s\"  ", index, var_ptr, str.c_str());
+        }
+        else
+        {
+            std::array<std::byte, sizeof(CharType) * max_display_length> raw{};
+            win_emu.memory.read_memory(var_ptr, raw.data(), raw.size());
+
+            std::ostringstream hex;
+            for (size_t i = 0; i < raw.size(); ++i)
+            {
+                if (i > 0 && i % 8 == 0)
+                    hex << ' ';
+                hex << std::hex << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(static_cast<unsigned char>(raw[i]));
+            }
+
+            win_emu.log.print(color::gray, "arg%zu: (0x%016llX) [hex] %s  ", index, var_ptr, hex.str().c_str());
+        }
     }
 
     void handle_function_details(analysis_context& c, const std::string_view function)
