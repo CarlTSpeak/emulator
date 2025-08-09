@@ -137,7 +137,7 @@ namespace
     template <typename CharType = char>
     void print_arg_labelled(windows_emulator& win_emu, size_t index)
     {
-        constexpr size_t max_display_length = 128;
+        constexpr size_t max_display_length = 2;
         const uint64_t var_ptr = get_function_argument(win_emu.emu(), index);
 
         if (var_ptr == 0)

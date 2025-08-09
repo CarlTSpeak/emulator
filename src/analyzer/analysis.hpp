@@ -41,11 +41,12 @@ inline std::unordered_map<std::string_view, size_t> function_argument_count = []
 
         add_functions_with_arity(map, 1,
                                  {
-                                     "LoadLibraryA", "LoadLibraryW", "LoadLibrary", "GetCommandLineA", "GetCommandLineW",
-                                     "GetModuleHandleA", "GetModuleHandleW", "GetModuleHandle","FreeLibrary"});
+                                     "LoadLibraryA", "LoadLibraryW", "LoadLibrary", "GetModuleHandleA", 
+                                     "GetModuleHandleW", "GetModuleHandle","FreeLibrary"});
 
         add_functions_with_arity(map, 2,
-                                 {"lstrcmpA", "lstrcmpW", "lstrcmpiA", "lstrcmpiW", "lstrcmp", "lstrcmpi", "SetWindowTextA", "SetWindowTextW", "GetWindowTextA", "GetWindowTextW",
+                                 {"lstrcmpA", "lstrcmpW", "lstrcmpiA", "lstrcmpiW", "lstrcmp", "lstrcmpi", "SetWindowTextA", 
+                                  "SetWindowTextW", "GetWindowTextA", "GetWindowTextW",
                                   "FindNextFileA", "FindNextFileW", "SetWindowText", "GetWindowText", "FindNextFile"});
 
         add_functions_with_arity(map, 3,
