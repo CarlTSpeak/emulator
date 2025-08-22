@@ -451,6 +451,9 @@ namespace
                     continue;
                 }
 
+                constexpr uint64_t excludestart = 0x142C349B0ull;
+                constexpr uint64_t excludeend = 0x142C34C8Eull;
+
                 auto read_handler = [&, section, concise_logging](const uint64_t address, const void*, size_t) {
                     const auto rip = win_emu->emu().read_instruction_pointer();
                     if (!win_emu->mod_manager.executable->is_within(rip))
@@ -468,14 +471,26 @@ namespace
                         }
                     }
 
+                   if ((rip >= excludestart && rip < excludeend) || rip == 0x142b16e84ull)
+                    {
+                        return;
+                    }
+
                     win_emu->log.print(color::green,
                                        "Reading from executable section %s at 0x%" PRIx64 " via 0x%" PRIx64 "\n",
                                        section.name.c_str(), address, rip);
                 };
 
+               
+
                 const auto write_handler = [&, section, concise_logging](const uint64_t address, const void*, size_t) {
                     const auto rip = win_emu->emu().read_instruction_pointer();
                     if (!win_emu->mod_manager.executable->is_within(rip))
+                    {
+                        return;
+                    }
+
+                    if ((rip >= excludestart && rip < excludeend) || rip == 0x142b16e8dull)
                     {
                         return;
                     }
