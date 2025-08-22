@@ -560,8 +560,8 @@ namespace
 
                     win_emu->log.print(color::green, "Reading from executable section %s at 0x%" PRIx64 " via 0x%" PRIx64 "\n",
                                        section.name.c_str(), address, rip);
-                };
-
+              };
+             
                 const auto write_handler = [&, section, concise_logging](const uint64_t address, const void*, size_t) {
                     const auto rip = win_emu->emu().read_instruction_pointer();
                     if (!win_emu->mod_manager.executable->is_within(rip))
