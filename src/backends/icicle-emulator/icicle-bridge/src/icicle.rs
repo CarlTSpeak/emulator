@@ -376,6 +376,15 @@ impl icicle_cpu::mem::IoMemory for MmioHandler {
 impl IcicleEmulator {
     pub fn new() -> Self {
         let mut virtual_machine = create_x64_vm();
+        let capacity_400mb = 50_000;
+
+        let mut capacity = 8 * 2 * capacity_400mb; // ~8gb
+        if cfg!(target_pointer_width = "32") {
+            capacity = 2 * capacity_400mb; // ~1gb
+        }
+
+        virtual_machine.cpu.mem.set_capacity(capacity);
+
         let stop_value = Rc::new(RefCell::new(false));
         let exec_hooks = Rc::new(RefCell::new(ExecutionHooks::new(stop_value.clone())));
 
@@ -614,14 +623,7 @@ impl IcicleEmulator {
             value: 0x0,
         };
 
-        let layout = icicle_vm::cpu::mem::AllocLayout {
-            addr: Some(address),
-            size: length,
-            align: 0x1000,
-        };
-
-        let res = self.get_mem().alloc_memory(layout, mapping);
-        return res.is_ok();
+        return self.get_mem().map_memory_len(address, length, mapping);
     }
 
     pub fn map_mmio(
@@ -636,14 +638,7 @@ impl IcicleEmulator {
         let handler = MmioHandler::new(read_function, write_function);
         let handler_id = mem.register_io_handler(handler);
 
-        let layout = icicle_vm::cpu::mem::AllocLayout {
-            addr: Some(address),
-            size: length,
-            align: 0x1000,
-        };
-
-        let res = mem.alloc_memory(layout, handler_id);
-        return res.is_ok();
+        return self.get_mem().map_memory_len(address, length, handler_id);
     }
 
     pub fn unmap_memory(&mut self, address: u64, length: u64) -> bool {

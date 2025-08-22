@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronDown } from "react-bootstrap-icons";
+import { Input } from "./ui/input";
 
 interface SettingsMenuProps {
   settings: Settings;
@@ -54,6 +55,10 @@ export class SettingsMenu extends React.Component<SettingsMenuProps, Settings> {
     }
   }
 
+  updateArgv(commandLine: string) {
+    this.setState({ commandLine });
+  }
+
   render() {
     return (
       <div className="grid gap-4">
@@ -62,6 +67,15 @@ export class SettingsMenu extends React.Component<SettingsMenuProps, Settings> {
           <p className="text-sm text-muted-foreground">
             Set the settings for the emulation.
           </p>
+        </div>
+
+        <div className="flex gap-6">
+          <Input
+            id="settings-argv"
+            placeholder="Command-Line Arguments"
+            value={this.state.commandLine}
+            onChange={(e) => this.updateArgv(e.target.value)}
+          />
         </div>
 
         <div className="flex gap-6">
@@ -143,6 +157,38 @@ export class SettingsMenu extends React.Component<SettingsMenuProps, Settings> {
 
         <div className="flex gap-6">
           <Checkbox
+            id="settings-foreign"
+            checked={this.state.foreignAccess}
+            onCheckedChange={(checked: boolean) => {
+              this.setState({ foreignAccess: checked });
+            }}
+          />
+          <SettingsLabel
+            htmlFor="settings-foreign"
+            text={"Log Foreign Access"}
+            tooltip={
+              "Log when the application reads/writes memory of other modules"
+            }
+          />
+        </div>
+
+        <div className="flex gap-6">
+          <Checkbox
+            id="settings-summary"
+            checked={this.state.instructionSummary}
+            onCheckedChange={(checked: boolean) => {
+              this.setState({ instructionSummary: checked });
+            }}
+          />
+          <SettingsLabel
+            htmlFor="settings-summary"
+            text={"Print Instruction Summary"}
+            tooltip={"Print summary of executed instructions"}
+          />
+        </div>
+
+        <div className="flex gap-6">
+          <Checkbox
             id="settings-persist"
             checked={this.state.persist}
             onCheckedChange={(checked: boolean) => {
@@ -151,7 +197,7 @@ export class SettingsMenu extends React.Component<SettingsMenuProps, Settings> {
           />
           <SettingsLabel
             htmlFor="settings-persist"
-            text={"Persist filesystem"}
+            text={"Persist Filesystem"}
             tooltip={
               "Persist files and folders that were created, modified or deleted during the emulation"
             }
