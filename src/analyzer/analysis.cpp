@@ -358,6 +358,43 @@ namespace
 		}
 	}
 
+	 bool is_return(const disassembler& d, const emulator& emu, const uint64_t address)
+    {
+        std::array<uint8_t, MAX_INSTRUCTION_BYTES> instruction_bytes{};
+        const auto result = emu.try_read_memory(address, instruction_bytes.data(), instruction_bytes.size());
+        if (!result)
+        {
+            return false;
+        }
+
+        const auto instructions = d.disassemble(instruction_bytes, 1);
+        if (instructions.empty())
+        {
+            return false;
+        }
+
+        return cs_insn_group(d.get_handle(), instructions.data(), CS_GRP_RET);
+    }
+
+    void record_instruction(analysis_context& c, const uint64_t address)
+    {
+        std::array<uint8_t, MAX_INSTRUCTION_BYTES> instruction_bytes{};
+        const auto result = c.win_emu->emu().try_read_memory(address, instruction_bytes.data(), instruction_bytes.size());
+        if (!result)
+        {
+            return;
+        }
+
+        disassembler disasm{};
+        const auto instructions = disasm.disassemble(instruction_bytes, 1);
+        if (instructions.empty())
+        {
+            return;
+        }
+
+        ++c.instructions[instructions[0].id];
+    }
+
 	void handle_instruction(analysis_context& c, const uint64_t address)
 	{
 		auto& win_emu = *c.win_emu;
@@ -479,6 +516,23 @@ namespace
 
         win_emu.log.print(color::blue, "Executing RDTSC instruction at 0x%" PRIx64 " (%s)\n", rip, (*mod) ? (*mod)->name.c_str() : "<N/A>");
     }
+
+	void handle_rdtscp(const analysis_context& c)
+    {
+        auto& win_emu = *c.win_emu;
+        auto& emu = win_emu.emu();
+
+        const auto rip = emu.read_instruction_pointer();
+        const auto mod = get_module_if_interesting(win_emu.mod_manager, c.settings->modules, rip);
+
+        if (!mod.has_value())
+        {
+            return;
+        }
+
+        win_emu.log.print(color::blue, "Executing RDTSCP instruction at 0x%" PRIx64 " (%s)\n", rip,
+                          (*mod) ? (*mod)->name.c_str() : "<N/A>");
+    }
 	}
 
 	emulator_callbacks::continuation handle_syscall(const analysis_context& c, const uint32_t syscall_id,
@@ -598,7 +652,6 @@ namespace
             }
         });
     }
-}
 
 void register_analysis_callbacks(analysis_context& c)
 {

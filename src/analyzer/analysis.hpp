@@ -62,8 +62,8 @@ inline std::unordered_map<std::string_view, size_t> function_argument_count = []
 
     add_functions_with_arity(map, 2,
                              {"lstrcmpA", "lstrcmpW", "lstrcmpiA", "lstrcmpiW", "lstrcmp", "lstrcmpi", "SetWindowTextA",
-                              "SetWindowTextW", "GetWindowTextA", "GetWindowTextW", "GetProcAddress", "FindNextFileA",
-                              "FindNextFileW", "SetWindowText", "GetWindowText", "FindNextFile"});
+                              "SetWindowTextW", "GetWindowTextA", "GetWindowTextW", "GetProcAddress", "FindNextFileA", "FindNextFileW", "SetWindowText",
+                              "GetWindowText", "FindNextFile", "VirtualQuery"});
 
     add_functions_with_arity(map, 3,
                              {"GetEnvironmentVariableA", "GetEnvironmentVariableW", "ExpandEnvironmentStringsA",
