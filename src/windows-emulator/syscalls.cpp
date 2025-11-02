@@ -155,6 +155,7 @@ namespace syscalls
     NTSTATUS handle_NtSetInformationObject();
     NTSTATUS handle_NtQuerySecurityObject(const syscall_context& c, handle /*h*/, SECURITY_INFORMATION /*security_information*/,
                                           emulator_pointer security_descriptor, ULONG length, emulator_object<ULONG> length_needed);
+    NTSTATUS handle_NtSetSecurityObject();
 
     // syscalls/port.cpp:
     NTSTATUS handle_NtConnectPort(const syscall_context& c, emulator_object<handle> client_port_handle,
@@ -242,6 +243,9 @@ namespace syscalls
                                     ULONG allocation_attributes, handle file_handle);
     NTSTATUS handle_NtOpenSection(const syscall_context& c, emulator_object<handle> section_handle, ACCESS_MASK /*desired_access*/,
                                   emulator_object<OBJECT_ATTRIBUTES<EmulatorTraits<Emu64>>> object_attributes);
+    NTSTATUS handle_NtQuerySection(const syscall_context& c, handle section_handle, SECTION_INFORMATION_CLASS section_information_class,
+                                   uint64_t section_information, EmulatorTraits<Emu64>::SIZE_T section_information_length,
+                                   emulator_object<EmulatorTraits<Emu64>::SIZE_T> result_length);
     NTSTATUS handle_NtMapViewOfSection(const syscall_context& c, handle section_handle, handle process_handle,
                                        emulator_object<uint64_t> base_address,
                                        EMULATOR_CAST(EmulatorTraits<Emu64>::ULONG_PTR, ULONG_PTR) /*zero_bits*/,
@@ -249,6 +253,12 @@ namespace syscalls
                                        emulator_object<LARGE_INTEGER> /*section_offset*/,
                                        emulator_object<EMULATOR_CAST(EmulatorTraits<Emu64>::SIZE_T, SIZE_T)> view_size,
                                        SECTION_INHERIT /*inherit_disposition*/, ULONG /*allocation_type*/, ULONG /*win32_protect*/);
+    NTSTATUS handle_NtMapViewOfSectionEx(const syscall_context& c, handle section_handle, handle process_handle,
+                                         emulator_object<uint64_t> base_address, emulator_object<LARGE_INTEGER> section_offset,
+                                         emulator_object<EMULATOR_CAST(EmulatorTraits<Emu64>::SIZE_T, SIZE_T)> view_size,
+                                         ULONG allocation_type, ULONG page_protection,
+                                         uint64_t extended_parameters, // PMEM_EXTENDED_PARAMETER
+                                         ULONG extended_parameter_count);
     NTSTATUS handle_NtUnmapViewOfSection(const syscall_context& c, handle process_handle, uint64_t base_address);
     NTSTATUS handle_NtUnmapViewOfSectionEx(const syscall_context& c, handle process_handle, uint64_t base_address, ULONG /*flags*/);
     NTSTATUS handle_NtAreMappedFilesTheSame();
@@ -348,8 +358,9 @@ namespace syscalls
         {
             if (performance_counter)
             {
-                performance_counter.access(
-                    [&](LARGE_INTEGER& value) { value.QuadPart = c.win_emu.clock().steady_now().time_since_epoch().count(); });
+                performance_counter.access([&](LARGE_INTEGER& value) {
+                    value.QuadPart = c.win_emu.clock().steady_now().time_since_epoch().count(); //
+                });
             }
 
             if (performance_frequency)
@@ -511,7 +522,7 @@ namespace syscalls
 
     NTSTATUS handle_NtGdiInit(const syscall_context& c)
     {
-        c.proc.peb.access([&](PEB64& peb) {
+        c.proc.peb64.access([&](PEB64& peb) {
             if (!peb.GdiSharedHandleTable)
             {
                 const auto shared_memory = c.proc.base_allocator.reserve<GDI_SHARED_MEMORY64>();
@@ -911,30 +922,76 @@ namespace syscalls
         return FALSE;
     }
 
-    NTSTATUS handle_NtUserEnumDisplayDevices(const syscall_context& /*c*/,
+    NTSTATUS handle_NtUserEnumDisplayDevices(const syscall_context& c,
                                              const emulator_object<UNICODE_STRING<EmulatorTraits<Emu64>>> str_device, const DWORD dev_num,
                                              const emulator_object<EMU_DISPLAY_DEVICEW> display_device, const DWORD /*flags*/)
     {
-        if (str_device && dev_num != 0)
+        if (!str_device)
         {
-            return STATUS_UNSUCCESSFUL;
-        }
+            if (dev_num > 0)
+            {
+                return STATUS_UNSUCCESSFUL;
+            }
 
-        if (dev_num > 0)
+            display_device.access([&](EMU_DISPLAY_DEVICEW& dev) {
+                dev.StateFlags = 0x5; // DISPLAY_DEVICE_PRIMARY_DEVICE | DISPLAY_DEVICE_ATTACHED_TO_DESKTOP
+                utils::string::copy(dev.DeviceName, u"\\\\.\\DISPLAY1");
+                utils::string::copy(dev.DeviceString, u"Emulated Virtual Adapter");
+                utils::string::copy(dev.DeviceID, u"PCI\\VEN_10DE&DEV_0000&SUBSYS_00000000&REV_A1");
+                utils::string::copy(dev.DeviceKey, u"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Video\\{00000001-"
+                                                   u"0002-0003-0004-000000000005}\\0000");
+            });
+        }
+        else
         {
-            return STATUS_UNSUCCESSFUL;
-        }
+            const auto dev_name = read_unicode_string(c.emu, str_device);
 
-        display_device.access([&](EMU_DISPLAY_DEVICEW& dev) {
-            dev.StateFlags = 0;
-            utils::string::copy(dev.DeviceName, u"\\\\.\\DISPLAY1");
-            utils::string::copy(dev.DeviceID, u"PCI\\VEN_10DE&DEV_0000&SUBSYS_00000000&REV_A1");
-            utils::string::copy(dev.DeviceString, u"Emulator Display");
-            utils::string::copy(dev.DeviceKey, u"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Video\\{00000001-"
-                                               u"0002-0003-0004-000000000005}\\0001");
-        });
+            if (dev_name != u"\\\\.\\DISPLAY1")
+            {
+                return STATUS_UNSUCCESSFUL;
+            }
+
+            if (dev_num > 0)
+            {
+                return STATUS_UNSUCCESSFUL;
+            }
+
+            display_device.access([&](EMU_DISPLAY_DEVICEW& dev) {
+                dev.StateFlags = 0x1; // DISPLAY_DEVICE_ACTIVE
+                utils::string::copy(dev.DeviceName, u"\\\\.\\DISPLAY1\\Monitor0");
+                utils::string::copy(dev.DeviceString, u"Generic PnP Monitor");
+                utils::string::copy(dev.DeviceID, u"MONITOR\\EMU1234\\{4d36e96e-e325-11ce-bfc1-08002be10318}\\0000");
+                utils::string::copy(dev.DeviceKey, u"\\Registry\\Machine\\System\\CurrentControlSet\\Enum\\DISPLAY\\EMU1234\\"
+                                                   u"1&23a45b&0&UID67568640");
+            });
+        }
 
         return STATUS_SUCCESS;
+    }
+
+    NTSTATUS handle_NtUserEnumDisplaySettings(const syscall_context& c,
+                                              const emulator_object<UNICODE_STRING<EmulatorTraits<Emu64>>> device_name,
+                                              const DWORD mode_num, const emulator_object<EMU_DEVMODEW> dev_mode, const DWORD /*flags*/)
+    {
+        if (dev_mode && (mode_num == ENUM_CURRENT_SETTINGS || mode_num == 0))
+        {
+            const auto dev_name = read_unicode_string(c.emu, device_name);
+
+            if (dev_name == u"\\\\.\\DISPLAY1")
+            {
+                dev_mode.access([](EMU_DEVMODEW& dm) {
+                    dm.dmFields = 0x5C0000; // DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY
+                    dm.dmPelsWidth = 1920;
+                    dm.dmPelsHeight = 1080;
+                    dm.dmBitsPerPel = 32;
+                    dm.dmDisplayFrequency = 60;
+                });
+
+                return STATUS_SUCCESS;
+            }
+        }
+
+        return STATUS_UNSUCCESSFUL;
     }
 
     NTSTATUS handle_NtAssociateWaitCompletionPacket()
@@ -992,6 +1049,7 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtManageHotPatch);
     add_handler(NtOpenSection);
     add_handler(NtMapViewOfSection);
+    add_handler(NtMapViewOfSectionEx);
     add_handler(NtOpenSymbolicLinkObject);
     add_handler(NtQuerySymbolicLinkObject);
     add_handler(NtQuerySystemInformationEx);
@@ -999,6 +1057,7 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtQueryVolumeInformationFile);
     add_handler(NtApphelpCacheControl);
     add_handler(NtCreateSection);
+    add_handler(NtQuerySection);
     add_handler(NtConnectPort);
     add_handler(NtSecureConnectPort);
     add_handler(NtCreateFile);
@@ -1131,6 +1190,7 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtUserGetRawInputDeviceList);
     add_handler(NtUserGetKeyboardType);
     add_handler(NtUserEnumDisplayDevices);
+    add_handler(NtUserEnumDisplaySettings);
     add_handler(NtUserSetProp);
     add_handler(NtUserSetProp2);
     add_handler(NtUserChangeWindowMessageFilterEx);
@@ -1154,6 +1214,7 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtReleaseWorkerFactoryWorker);
     add_handler(NtAlpcCreateSecurityContext);
     add_handler(NtAlpcDeleteSecurityContext);
+    add_handler(NtSetSecurityObject);
 
 #undef add_handler
 }

@@ -328,7 +328,7 @@ windows_emulator::windows_emulator(std::unique_ptr<x86_64_emulator> emu, const e
         this->map_port(mapping.first, mapping.second);
     }
 
-        this->setup_hooks();
+    this->setup_hooks();
 }
 
 windows_emulator::~windows_emulator() = default;
@@ -351,8 +351,10 @@ void windows_emulator::setup_process(const application_settings& app_settings)
     const auto& emu = this->emu();
     auto& context = this->process;
 
-    this->mod_manager.map_main_modules(app_settings.application, R"(C:\Windows\System32\ntdll.dll)", R"(C:\Windows\System32\win32u.dll)",
-                                       this->log);
+    this->mod_manager.map_main_modules(app_settings.application, R"(C:\Windows\System32)", R"(C:\Windows\SysWOW64)", this->log);
+
+    // Set WOW64 flag based on the detected execution mode
+    context.is_wow64_process = (this->mod_manager.get_execution_mode() == execution_mode::wow64_32bit);
 
     const auto* executable = this->mod_manager.executable;
     const auto* ntdll = this->mod_manager.ntdll;
@@ -360,14 +362,17 @@ void windows_emulator::setup_process(const application_settings& app_settings)
 
     const auto apiset_data = apiset::obtain(this->emulation_root);
 
-    this->process.setup(this->emu(), this->memory, this->registry, app_settings, *executable, *ntdll, apiset_data);
+    this->process.setup(this->emu(), this->memory, this->registry, app_settings, *executable, *ntdll, apiset_data,
+                        this->mod_manager.wow64_modules_.ntdll32);
 
     const auto ntdll_data = emu.read_memory(ntdll->image_base, static_cast<size_t>(ntdll->size_of_image));
     const auto win32u_data = emu.read_memory(win32u->image_base, static_cast<size_t>(win32u->size_of_image));
 
     this->dispatcher.setup(ntdll->exports, ntdll_data, win32u->exports, win32u_data);
 
-    const auto main_thread_id = context.create_thread(this->memory, this->mod_manager.executable->entry_point, 0, 0, false);
+    const auto main_thread_id = context.create_thread(this->memory, this->mod_manager.executable->entry_point, 0,
+                                                      this->mod_manager.executable->size_of_stack_commit, false);
+
     switch_to_thread(*this, main_thread_id);
 }
 
@@ -434,9 +439,6 @@ void windows_emulator::on_instruction_execution(const uint64_t address)
 
 void windows_emulator::setup_hooks()
 {
-    uint64_t tsc_base = splitmix64(0xCAFEBABEDEADBEEFull);
-    constexpr uint64_t tick_scale = 50;
-
     this->emu().hook_instruction(x86_hookable_instructions::syscall, [&] {
         this->dispatcher.dispatch(*this);
         return instruction_hook_continuation::skip_instruction;
@@ -445,8 +447,7 @@ void windows_emulator::setup_hooks()
     this->emu().hook_instruction(x86_hookable_instructions::rdtscp, [&] {
         this->callbacks.on_rdtscp();
 
-        const uint64_t retired = this->executed_instructions_;
-        const uint64_t ticks = tsc_base + (retired * tick_scale);
+        const auto ticks = this->clock_->timestamp_counter();
         this->emu().reg(x86_register::rax, static_cast<uint32_t>(ticks));
         this->emu().reg(x86_register::rdx, static_cast<uint32_t>(ticks >> 32));
 
@@ -460,8 +461,7 @@ void windows_emulator::setup_hooks()
     this->emu().hook_instruction(x86_hookable_instructions::rdtsc, [&] {
         this->callbacks.on_rdtsc();
 
-        const uint64_t retired = this->executed_instructions_;
-        const uint64_t ticks = tsc_base + (retired * tick_scale);
+        const auto ticks = this->clock_->timestamp_counter();
         this->emu().reg(x86_register::rax, static_cast<uint32_t>(ticks));
         this->emu().reg(x86_register::rdx, static_cast<uint32_t>(ticks >> 32));
 
