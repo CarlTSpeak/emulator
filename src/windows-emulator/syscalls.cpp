@@ -350,6 +350,7 @@ namespace syscalls
                                             uint64_t token_information, ULONG token_information_length,
                                             emulator_object<ULONG> return_length);
     NTSTATUS handle_NtQuerySecurityAttributesToken();
+    NTSTATUS handle_NtAdjustPrivilegesToken();
 
     NTSTATUS handle_NtQueryPerformanceCounter(const syscall_context& c, const emulator_object<LARGE_INTEGER> performance_counter,
                                               const emulator_object<LARGE_INTEGER> performance_frequency)
@@ -1008,6 +1009,21 @@ namespace syscalls
     {
         return STATUS_NOT_SUPPORTED;
     }
+
+    NTSTATUS handle_NtSetInformationDebugObject()
+    {
+        return STATUS_NOT_SUPPORTED;
+    }
+
+    NTSTATUS handle_NtRemoveProcessDebug()
+    {
+        return STATUS_NOT_SUPPORTED;
+    }
+
+    NTSTATUS handle_NtNotifyChangeDirectoryFileEx()
+    {
+        return STATUS_NOT_SUPPORTED;
+    }
 }
 
 void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& handler_mapping)
@@ -1067,6 +1083,7 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtOpenProcessToken);
     add_handler(NtOpenProcessTokenEx);
     add_handler(NtQuerySecurityAttributesToken);
+    add_handler(NtAdjustPrivilegesToken);
     add_handler(NtQueryLicenseValue);
     add_handler(NtTestAlert);
     add_handler(NtContinue);
@@ -1215,6 +1232,9 @@ void syscall_dispatcher::add_handlers(std::map<std::string, syscall_handler>& ha
     add_handler(NtAlpcCreateSecurityContext);
     add_handler(NtAlpcDeleteSecurityContext);
     add_handler(NtSetSecurityObject);
+    add_handler(NtSetInformationDebugObject);
+    add_handler(NtRemoveProcessDebug);
+    add_handler(NtNotifyChangeDirectoryFileEx);
 
 #undef add_handler
 }

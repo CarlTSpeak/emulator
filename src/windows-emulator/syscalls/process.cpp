@@ -86,6 +86,13 @@ namespace syscalls
                 b = FALSE; //
             });
 
+        case ProcessPriorityClass:
+            return handle_query<PROCESS_PRIORITY_CLASS>(c.emu, process_information, process_information_length, return_length,
+                                                        [](PROCESS_PRIORITY_CLASS& c) {
+                                                            c.Foreground = 1;
+                                                            c.PriorityClass = 32; // Normal
+                                                        });
+
         case ProcessBasicInformation:
             return handle_query<PROCESS_BASIC_INFORMATION64>(c.emu, process_information, process_information_length, return_length,
                                                              [&](PROCESS_BASIC_INFORMATION64& basic_info) {
@@ -177,7 +184,9 @@ namespace syscalls
             || info_class == ProcessDefaultHardErrorMode                 //
             || info_class == ProcessRaiseUMExceptionOnInvalidHandleClose //
             || info_class == ProcessDynamicFunctionTableInformation      //
-            || info_class == ProcessPriorityBoost)
+            || info_class == ProcessPriorityBoost                        //
+            || info_class == ProcessPriorityClassEx                      //
+            || info_class == ProcessPriorityClass)
         {
             return STATUS_SUCCESS;
         }
